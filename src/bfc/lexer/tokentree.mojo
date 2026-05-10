@@ -6,30 +6,30 @@ from .token import TokenKind
 # TokenTree
 # ===-----------------------------------------------------------------------===#
 
-
+# TODO: Ideally, avoid allocations
 @fieldwise_init
 struct TokenTree(Copyable, Writable):
     comptime Ptr = UnsafePointer[Self, MutExternalOrigin]
 
-    var token_tree: Variant[Token, Delimited]
+    var value: Variant[Token, Delimited]
 
     def __init__(out self, token: Token):
-        self.token_tree = Variant[Token, Delimited](token)
+        self.value = Variant[Token, Delimited](token)
 
     def __init__(out self, var delimited: Delimited):
-        self.token_tree = Variant[Token, Delimited](delimited^)
+        self.value = Variant[Token, Delimited](delimited^)
 
     @staticmethod
-    def new(var tt: TokenTree) -> Self.Ptr:
+    def boxed(var tt: TokenTree) -> Self.Ptr:
         var ptr = alloc[Self](1)
         ptr.init_pointee_move(tt^)
         return ptr
 
     def write_to(self, mut writer: Some[Writer]):
-        if self.token_tree.isa[Token]():
-            writer.write(t"TokenTree({self.token_tree[Token]})")
+        if self.value.isa[Token]():
+            writer.write(t"TokenTree({self.value[Token]})")
         else:
-            writer.write(t"TokenTree({self.token_tree[Delimited]})")
+            writer.write(t"TokenTree({self.value[Delimited]})")
 
     def write_repr_to(self, mut writer: Some[Writer]):
         self.write_to(writer)

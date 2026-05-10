@@ -15,7 +15,10 @@ struct Lexer[origin: Origin[mut=False]]:
         self.token = next_token
         return next_token^
 
-    def lex_token_trees(mut self, is_delimited: Bool) raises -> TokenStream:
+    def lex_token_trees(mut self) raises -> TokenStream:
+        return self._lex_token_trees_inner(False)
+
+    def _lex_token_trees_inner(mut self, is_delimited: Bool) raises -> TokenStream:
         var buf = TokenStream()
 
         while True:
@@ -31,8 +34,8 @@ struct Lexer[origin: Origin[mut=False]]:
 
             # If there is an open bracked, lex the nexted token subtree
             if this_tok.kind == TokenKind.OpenBracket:
-                var nested = self.lex_token_trees(True)
-                var tt = TokenTree.new(
+                var nested = self._lex_token_trees_inner(True)
+                var tt = TokenTree.boxed(
                     TokenTree(
                         Delimited(
                             this_tok.span.value,
@@ -55,4 +58,4 @@ struct Lexer[origin: Origin[mut=False]]:
             # Else return a single token token-tree, skipping the 'comment'
             # tokens
             elif this_tok.kind != TokenKind.Other:
-                buf.append(TokenTree.new(TokenTree(this_tok)))
+                buf.append(TokenTree.boxed(TokenTree(this_tok)))
