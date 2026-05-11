@@ -26,5 +26,8 @@ def main() raises:
     var ast = Parser().parse(ts)
     var ir = lower_ast(ast)
 
-    var interp = Interpreter(Memory(256))
-    interp.interpret_ir(ir)
+    var interp_ast = Interpreter(Memory(256))
+    interp_ast.interpret_ast(ast)
+
+    var interp_ir = Interpreter(Memory(256))
+    interp_ir.interpret_ir(ir)

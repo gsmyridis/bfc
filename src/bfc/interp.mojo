@@ -23,13 +23,6 @@ struct Memory(Movable):
         """Reads the byte at head position."""
         return self._memory[self.head]
 
-    def add(mut self, delta: Int):
-        """Adds delta to the current byte, wrapping in the byte range."""
-        var next_value = (Int(self.read()) + delta) % 256
-        if next_value < 0:
-            next_value += 256
-        self.write(UInt8(next_value))
-
     def head_forward(mut self, n: Int):
         """Moves the head position forward."""
         self.head += n
@@ -47,37 +40,50 @@ struct Interpreter:
         self.memory = mem^
         self.ip = 0
 
+    def _add(mut self, value: UInt8):
+        """Adds value to the current byte."""
+        self.memory.write(self.memory.read() + value)
+
+    def _output(self):
+        """Prints the current byte as ASCII character."""
+        print(Codepoint(self.memory.read()), end="")
+
     def interpret_ast(mut self, ast: ASTree) raises:
+        """Interprets the AST walking the tree."""
         for ast_node in ast:
             var node = ast_node[].copy()
 
             if node.value.isa[ASTOp]():
-                self.interpret_ast_op(node.value[ASTOp])
+                self._interpret_ast_op(node.value[ASTOp])
             else:
                 var block = node.value[Block].copy()
                 while self.memory.read() != 0:
                     self.interpret_ast(block.astree)
 
-    def interpret_ast_op(mut self, op: ASTOp) raises:
+    def _interpret_ast_op(mut self, op: ASTOp) raises:
         if op.kind == ASTOpKind.Increment:
-            self.memory.add(1)
+            self._add(1)
         elif op.kind == ASTOpKind.Decrement:
-            self.memory.add(-1)
+            self._add(-1)
         elif op.kind == ASTOpKind.Right:
             self.memory.head_forward(1)
         elif op.kind == ASTOpKind.Left:
             self.memory.head_backwards(1)
         elif op.kind == ASTOpKind.Output:
-            print(Codepoint(self.memory.read()), end="")
+            self._output()
         elif op.kind == ASTOpKind.Input:
             raise Error("input is not implemented")
-        elif op.kind == ASTOpKind.JumpIfZero:
-            pass
         else:
-            debug_assert(op.kind == ASTOpKind.JumpIfNonZero)
-            pass
+            assert (
+                op.kind == ASTOpKind.JumpIfZero or
+                op.kind == ASTOpKind.JumpIfNonZero
+            )
 
     def interpret_ir(mut self, stream: IRStream) raises:
+        """
+        Interprets the IR stream manipulating the instruction 
+        pointer.
+        """
         self.ip = 0
         while self.ip < len(stream):
             var op = stream[self.ip]
@@ -93,21 +99,22 @@ struct Interpreter:
                 else:
                     self.ip += 1
             else:
-                self.interpret_ir_op(op)
+                self._interpret_ir_op(op)
                 self.ip += 1
 
-    def interpret_ir_op(mut self, op: IROp) raises:
+    def _interpret_ir_op(mut self, op: IROp) raises:
         if op.kind == IROpKind.Increment:
-            self.memory.add(op.operand)
+            assert op.operand < 255
+            self._add(UInt8(op.operand))
         elif op.kind == IROpKind.Decrement:
-            self.memory.add(-op.operand)
+            self._add(-UInt8(op.operand))
         elif op.kind == IROpKind.Right:
             self.memory.head_forward(op.operand)
         elif op.kind == IROpKind.Left:
             self.memory.head_backwards(op.operand)
         elif op.kind == IROpKind.Output:
             for _ in range(op.operand):
-                print(Codepoint(self.memory.read()), end="")
+                self._output()
         elif op.kind == IROpKind.Input:
             raise Error("input is not implemented")
         else:
