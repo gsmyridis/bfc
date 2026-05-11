@@ -76,9 +76,6 @@ struct TokenKind(
             debug_assert(self == TokenKind.Other)
             writer.write("TokenKind.Other")
 
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
-
 
 # ===-----------------------------------------------------------------------===#
 # Token

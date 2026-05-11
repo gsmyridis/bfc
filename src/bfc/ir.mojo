@@ -1,156 +1,171 @@
-from std.utils import Variant
-from span import Span
-from ast import Op, ASTree, Block
+from ast import ASTOpKind, ASTOp, ASTree, Block
+
+
+# ===-----------------------------------------------------------------------===#
+# Intermediate Representation Operation Kind
+# ===-----------------------------------------------------------------------===#
+
+
+@fieldwise_init
+struct IROpKind(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
+    var _id: Int8
+
+    comptime Increment = IROpKind(0)
+    comptime Decrement = IROpKind(1)
+    comptime Left = IROpKind(2)
+    comptime Right = IROpKind(3)
+    comptime Input = IROpKind(4)
+    comptime Output = IROpKind(5)
+    comptime JumpIfZero = IROpKind(6)
+    comptime JumpIfNonZero = IROpKind(7)
+
+    def write_to(self, mut writer: Some[Writer]):
+        if self == IROpKind.Increment:
+            writer.write("IROpKind.Increment")
+        elif self == IROpKind.Decrement:
+            writer.write("IROpKind.Decrement")
+        elif self == IROpKind.Left:
+            writer.write("IROpKind.Left")
+        elif self == IROpKind.Right:
+            writer.write("IROpKind.Right")
+        elif self == IROpKind.Input:
+            writer.write("IROpKind.Input")
+        elif self == IROpKind.Output:
+            writer.write("IROpKind.Output")
+        elif self == IROpKind.JumpIfZero:
+            writer.write("IROpKind.JumpIfZero")
+        else:
+            debug_assert(self == IROpKind.JumpIfNonZero)
+            writer.write("IROpKind.JumpIfNonZero")
 
 
 # ===-----------------------------------------------------------------------===#
 # Intermediate Representation Operation
 # ===-----------------------------------------------------------------------===#
 
-
-struct IROp(Copyable, Writable):
-    var op: Op
-    var count: Int
-
-    def __init__(out self, op: Op, count: Int):
-        self.op = op
-        self.count = count
+@fieldwise_init
+struct IROp(ImplicitlyCopyable, Writable):
+    var kind: IROpKind
+    var operand: Int
 
     def write_to(self, mut writer: Some[Writer]):
-        writer.write(t"IROp({self.op}, {self.count})")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
-
-
-# ===-----------------------------------------------------------------------===#
-# Intermediate Representation Node
-# ===-----------------------------------------------------------------------===#
-
-
-struct IRNode(Copyable, Writable):
-    comptime Ptr = UnsafePointer[Self, MutExternalOrigin]
-
-    var value: Variant[IROp, IRBlock]
-
-    def __init__(out self, var op: IROp):
-        self.value = op^
-
-    def __init__(out self, var block: IRBlock):
-        self.value = block^
-
-    @staticmethod
-    def boxed(var node: IRNode) -> IRNode.Ptr:
-        var ptr = alloc[Self](1)
-        ptr.init_pointee_move(node^)
-        return ptr
-
-    def write_to(self, mut writer: Some[Writer]):
-        if self.value.isa[IROp]():
-            writer.write(t"IRNode({self.value[IROp]})")
-        else:
-            writer.write(t"IRNode({self.value[IRBlock]})")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
-
-
-# ===-----------------------------------------------------------------------===#
-# Intermediate Representation Block
-# ===-----------------------------------------------------------------------===#
-
-
-struct IRBlock(Copyable, Writable):
-    var span_open: Span
-    var span_close: Span
-    var body: IR
-
-    def __init__(out self, open: Span, close: Span, var body: IR):
-        self.span_open = open
-        self.span_close = close
-        self.body = body^
-
-    def write_to(self, mut writer: Some[Writer]):
-        writer.write(
-            t"IRBlock(span_open={self.span_open}, span_close={self.span_close},"
-            t" body=["
-        )
-        for i in range(len(self.body)):
-            if i != 0:
-                writer.write(", ")
-            var child = self.body[i]
-            writer.write(child[])
-        writer.write("])")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
-
+        writer.write(t"IROp({self.kind}, operand={self.operand})")
 
 # ===-----------------------------------------------------------------------===#
 # Intermediate Representation
 # ===-----------------------------------------------------------------------===#
 
-comptime IR = List[IRNode.Ptr]
+
+@fieldwise_init
+struct IR(ImplicitlyCopyable, Writable):
+    var op: IROp
+
+    def write_to(self, mut writer: Some[Writer]):
+        writer.write(t"IR({self.op})")
+
+
+comptime IRStream = List[IR]
 
 
 @fieldwise_init
 struct IRBuilder:
-    def lower_ast(self, ast: ASTree) -> IR:
-        var ir = IR()
+    def lower_ast(self, ast: ASTree) raises -> IRStream:
+        var ir = IRStream()
+        self.lower_ast_into(ir, ast)
+        return ir^
+
+    def lower_ast_into(self, mut ir: IRStream, ast: ASTree) raises:
         var has_pending = False
-        var pending_op = Op.Increment
+        var pending_kind = IROpKind.Increment
         var pending_count = 0
 
         for ast_node in ast:
             var node = ast_node[].copy()
 
-            if node.value.isa[Op]():
-                var op = node.value[Op]
-                if self.can_batch(op):
+            if node.value.isa[ASTOp]():
+                var ast_op = node.value[ASTOp]
+                if self.is_jump(ast_op.kind):
+                    continue
+
+                var kind = self.to_ir_kind(ast_op.kind)
+                if self.can_batch(kind):
                     if has_pending:
-                        if pending_op == op:
+                        if pending_kind == kind:
                             pending_count += 1
                         else:
-                            ir.append(self.box_op(pending_op, pending_count))
-                            pending_op = op
+                            self.flush_pending(ir, pending_kind, pending_count)
+                            pending_kind = kind
                             pending_count = 1
                     else:
-                        pending_op = op
+                        pending_kind = kind
                         pending_count = 1
                         has_pending = True
                 else:
                     if has_pending:
-                        ir.append(self.box_op(pending_op, pending_count))
+                        self.flush_pending(ir, pending_kind, pending_count)
                         has_pending = False
-                    ir.append(self.box_op(op, 1))
+                    ir.append(IR(IROp(kind, self.operand_or_one(ast_op))))
             else:
                 if has_pending:
-                    ir.append(self.box_op(pending_op, pending_count))
+                    self.flush_pending(ir, pending_kind, pending_count)
                     has_pending = False
 
                 var block = node.value[Block].copy()
-                var body = self.lower_ast(block.astree)
-                var ir_block = IRBlock(block.span_open, block.span_close, body^)
-                ir.append(IRNode.boxed(IRNode(ir_block^)))
+                var open_index = len(ir)
+                ir.append(IR(IROp(IROpKind.JumpIfZero, 0)))
+                self.lower_ast_into(ir, block.astree)
+                var close_index = len(ir)
+                ir.append(IR(IROp(IROpKind.JumpIfNonZero, open_index)))
+                ir[open_index].op.operand = close_index
 
         if has_pending:
-            ir.append(self.box_op(pending_op, pending_count))
+            self.flush_pending(ir, pending_kind, pending_count)
 
-        return ir^
+    def flush_pending(
+        self, mut ir: IRStream, kind: IROpKind, count: Int
+    ):
+        ir.append(IR(IROp(kind, count)))
 
-    def can_batch(self, op: Op) -> Bool:
+    def can_batch(self, kind: IROpKind) -> Bool:
         return (
-            op == Op.Increment
-            or op == Op.Decrement
-            or op == Op.Left
-            or op == Op.Right
-            or op == Op.Input
-            or op == Op.Output
+            kind == IROpKind.Increment
+            or kind == IROpKind.Decrement
+            or kind == IROpKind.Left
+            or kind == IROpKind.Right
+            or kind == IROpKind.Input
+            or kind == IROpKind.Output
         )
 
-    def box_op(self, op: Op, count: Int) -> IRNode.Ptr:
-        return IRNode.boxed(IRNode(IROp(op, count)))
+    def is_jump(self, kind: ASTOpKind) -> Bool:
+        return (
+            kind == ASTOpKind.JumpIfZero
+            or kind == ASTOpKind.JumpIfNonZero
+        )
+
+    def operand_or_one(self, op: ASTOp) raises -> Int:
+        if op.operand == None:
+            return 1
+        return op.operand[]
+
+    def to_ir_kind(self, kind: ASTOpKind) -> IROpKind:
+        if kind == ASTOpKind.Increment:
+            return IROpKind.Increment
+        elif kind == ASTOpKind.Decrement:
+            return IROpKind.Decrement
+        elif kind == ASTOpKind.Left:
+            return IROpKind.Left
+        elif kind == ASTOpKind.Right:
+            return IROpKind.Right
+        elif kind == ASTOpKind.Input:
+            return IROpKind.Input
+        elif kind == ASTOpKind.Output:
+            return IROpKind.Output
+        elif kind == ASTOpKind.JumpIfZero:
+            return IROpKind.JumpIfZero
+
+        debug_assert(kind == ASTOpKind.JumpIfNonZero)
+        return IROpKind.JumpIfNonZero
 
 
-def lower_ast(ast: ASTree) -> IR:
+def lower_ast(ast: ASTree) raises -> IRStream:
     return IRBuilder().lower_ast(ast)

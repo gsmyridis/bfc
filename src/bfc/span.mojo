@@ -7,6 +7,3 @@ struct Span(ImplicitlyCopyable, RegisterPassable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         writer.write(t"Span({self.value})")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)

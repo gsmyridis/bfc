@@ -3,6 +3,7 @@ from lexer.token import tokenize
 from lexer import Lexer
 from parser import Parser
 from ir import lower_ast
+from interp import Interpreter, Memory
 
 
 def read_to_string(path: String) -> String:
@@ -24,5 +25,6 @@ def main() raises:
     var ts = lexer.lex_token_trees()
     var ast = Parser().parse(ts)
     var ir = lower_ast(ast)
-    for x in ir:
-        print(x[])
+
+    var interp = Interpreter(Memory(256))
+    interp.interpret_ir(ir)

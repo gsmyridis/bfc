@@ -1,7 +1,7 @@
 from std.os import abort
 
 from lexer import TokenKind, Token, TokenTree, TokenStream, Delimited
-from ast import Op, ASTNode, ASTree, Block
+from ast import ASTOpKind, ASTOp, ASTNode, ASTree, Block
 
 
 @fieldwise_init
@@ -21,28 +21,42 @@ struct Parser:
         if tt.value.isa[Token]():
             return ASTNode(self.parse_token(tt.value[Token]))
         elif tt.value.isa[Delimited]():
-            var body = self.parse(tt.value[Delimited].tokenstream)
+            var delimited = tt.value[Delimited].copy()
+            var nested = self.parse(delimited.tokenstream)
+            var body = ASTree()
+            body.append(
+                ASTNode.boxed(
+                    ASTNode(ASTOp(ASTOpKind.JumpIfZero, delimited.span_close))
+                )
+            )
+            for child in nested:
+                body.append(child)
+            body.append(
+                ASTNode.boxed(
+                    ASTNode(ASTOp(ASTOpKind.JumpIfNonZero, delimited.span_open))
+                )
+            )
             var block = Block(
-                tt.value[Delimited].span_open,
-                tt.value[Delimited].span_close,
+                delimited.span_open,
+                delimited.span_close,
                 body^,
             )
             return ASTNode(block^)
 
         abort("`TokenTree` is either `Token` or `Delimited`")
 
-    def parse_token(self, token: Token) -> Op:
+    def parse_token(self, token: Token) -> ASTOp:
         if token.kind == TokenKind.Plus:
-            return Op.Increment
+            return ASTOp(ASTOpKind.Increment)
         elif token.kind == TokenKind.Minus:
-            return Op.Decrement
+            return ASTOp(ASTOpKind.Decrement)
         elif token.kind == TokenKind.LessThan:
-            return Op.Left
+            return ASTOp(ASTOpKind.Left)
         elif token.kind == TokenKind.GreaterThan:
-            return Op.Right
+            return ASTOp(ASTOpKind.Right)
         elif token.kind == TokenKind.Comma:
-            return Op.Input
+            return ASTOp(ASTOpKind.Input)
         elif token.kind == TokenKind.Dot:
-            return Op.Output
+            return ASTOp(ASTOpKind.Output)
 
         abort(t"invalid `TokenKind`: {token.kind}")

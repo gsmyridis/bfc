@@ -32,9 +32,6 @@ struct TokenTree(Copyable, Writable):
         else:
             writer.write(t"TokenTree({self.value[Delimited]})")
 
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
-
 
 # ===-----------------------------------------------------------------------===#
 # Delimited
@@ -58,9 +55,6 @@ struct Delimited(Copyable, Writable):
             var child = self.tokenstream[i]
             writer.write(child[])
         writer.write("])")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
 
 
 # ===-----------------------------------------------------------------------===#

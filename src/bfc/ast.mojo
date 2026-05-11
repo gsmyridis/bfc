@@ -2,44 +2,66 @@ from std.utils import Variant
 from span import Span
 
 # ===-----------------------------------------------------------------------===#
-# Operation
+# AST Operation Kind
 # ===-----------------------------------------------------------------------===#
 
 
 @fieldwise_init
-struct Op(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
+struct ASTOpKind(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
     var _id: Int8
 
-    comptime Increment = Op(0)
-    comptime Decrement = Op(1)
-    comptime Left = Op(2)
-    comptime Right = Op(3)
-    comptime Input = Op(4)
-    comptime Output = Op(5)
-    comptime JumpIfZero = Op(6)
-    comptime JumpIfNonZero = Op(7)
+    comptime Increment = ASTOpKind(0)
+    comptime Decrement = ASTOpKind(1)
+    comptime Left = ASTOpKind(2)
+    comptime Right = ASTOpKind(3)
+    comptime Input = ASTOpKind(4)
+    comptime Output = ASTOpKind(5)
+    comptime JumpIfZero = ASTOpKind(6)
+    comptime JumpIfNonZero = ASTOpKind(7)
 
     def write_to(self, mut writer: Some[Writer]):
-        if self == Op.Increment:
-            writer.write("Op.Increment")
-        elif self == Op.Decrement:
-            writer.write("Op.Decrement")
-        elif self == Op.Left:
-            writer.write("Op.Left")
-        elif self == Op.Right:
-            writer.write("Op.Right")
-        elif self == Op.Input:
-            writer.write("Op.Input")
-        elif self == Op.Output:
-            writer.write("Op.Output")
-        elif self == Op.JumpIfZero:
-            writer.write("Op.JumpIfZero")
+        if self == ASTOpKind.Increment:
+            writer.write("ASTOpKind.Increment")
+        elif self == ASTOpKind.Decrement:
+            writer.write("ASTOpKind.Decrement")
+        elif self == ASTOpKind.Left:
+            writer.write("ASTOpKind.Left")
+        elif self == ASTOpKind.Right:
+            writer.write("ASTOpKind.Right")
+        elif self == ASTOpKind.Input:
+            writer.write("ASTOpKind.Input")
+        elif self == ASTOpKind.Output:
+            writer.write("ASTOpKind.Output")
+        elif self == ASTOpKind.JumpIfZero:
+            writer.write("ASTOpKind.JumpIfZero")
         else:
-            debug_assert(self == Op.JumpIfNonZero)
-            writer.write("Op.JumpIfNonZero")
+            debug_assert(self == ASTOpKind.JumpIfNonZero)
+            writer.write("ASTOpKind.JumpIfNonZero")
 
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
+
+# ===-----------------------------------------------------------------------===#
+# AST Operation
+# ===-----------------------------------------------------------------------===#
+
+
+@fieldwise_init
+struct ASTOp(ImplicitlyCopyable, Writable):
+    var kind: ASTOpKind
+    var operand: Optional[Int]
+
+    def __init__(out self, kind: ASTOpKind):
+        self.kind = kind
+        self.operand = None
+
+    def __init__(out self, kind: ASTOpKind, operand: Int):
+        self.kind = kind
+        self.operand = operand
+
+    def write_to(self, mut writer: Some[Writer]):
+        if self.operand:
+            writer.write(t"ASTOp({self.kind}, operand={self.operand})")
+        else:
+            writer.write(t"ASTOp({self.kind})")
 
 
 # ===-----------------------------------------------------------------------===#
@@ -51,9 +73,9 @@ struct Op(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
 struct ASTNode(Copyable, Writable):
     comptime Ptr = UnsafePointer[Self, MutExternalOrigin]
 
-    var value: Variant[Op, Block]
+    var value: Variant[ASTOp, Block]
 
-    def __init__(out self, op: Op):
+    def __init__(out self, op: ASTOp):
         self.value = op
 
     def __init__(out self, var block: Block):
@@ -66,13 +88,10 @@ struct ASTNode(Copyable, Writable):
         return ptr
 
     def write_to(self, mut writer: Some[Writer]):
-        if self.value.isa[Op]():
-            writer.write(t"ASTNode({self.value[Op]})")
+        if self.value.isa[ASTOp]():
+            writer.write(t"ASTNode({self.value[ASTOp]})")
         else:
             writer.write(t"ASTNode({self.value[Block]})")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
 
 
 # ===-----------------------------------------------------------------------===#
@@ -101,9 +120,6 @@ struct Block(Copyable, Writable):
             var child = self.astree[i]
             writer.write(child[])
         writer.write("])")
-
-    def write_repr_to(self, mut writer: Some[Writer]):
-        self.write_to(writer)
 
 
 # ===-----------------------------------------------------------------------===#
