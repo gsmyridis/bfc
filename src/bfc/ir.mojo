@@ -51,20 +51,7 @@ struct IROp(ImplicitlyCopyable, Writable):
     def write_to(self, mut writer: Some[Writer]):
         writer.write(t"IROp({self.kind}, operand={self.operand})")
 
-# ===-----------------------------------------------------------------------===#
-# Intermediate Representation
-# ===-----------------------------------------------------------------------===#
-
-
-@fieldwise_init
-struct IR(ImplicitlyCopyable, Writable):
-    var op: IROp
-
-    def write_to(self, mut writer: Some[Writer]):
-        writer.write(t"IR({self.op})")
-
-
-comptime IRStream = List[IR]
+comptime IRStream = List[IROp]
 
 
 @fieldwise_init
@@ -104,7 +91,7 @@ struct IRBuilder:
                     if has_pending:
                         self.flush_pending(ir, pending_kind, pending_count)
                         has_pending = False
-                    ir.append(IR(IROp(kind, self.operand_or_one(ast_op))))
+                    ir.append(IROp(kind, self.operand_or_one(ast_op)))
             else:
                 if has_pending:
                     self.flush_pending(ir, pending_kind, pending_count)
@@ -112,11 +99,11 @@ struct IRBuilder:
 
                 var block = node.value[Block].copy()
                 var open_index = len(ir)
-                ir.append(IR(IROp(IROpKind.JumpIfZero, 0)))
+                ir.append(IROp(IROpKind.JumpIfZero, 0))
                 self.lower_ast_into(ir, block.astree)
                 var close_index = len(ir)
-                ir.append(IR(IROp(IROpKind.JumpIfNonZero, open_index)))
-                ir[open_index].op.operand = close_index
+                ir.append(IROp(IROpKind.JumpIfNonZero, open_index))
+                ir[open_index].operand = close_index
 
         if has_pending:
             self.flush_pending(ir, pending_kind, pending_count)
@@ -124,7 +111,7 @@ struct IRBuilder:
     def flush_pending(
         self, mut ir: IRStream, kind: IROpKind, count: Int
     ):
-        ir.append(IR(IROp(kind, count)))
+        ir.append(IROp(kind, count))
 
     def can_batch(self, kind: IROpKind) -> Bool:
         return (

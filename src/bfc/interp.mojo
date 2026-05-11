@@ -80,7 +80,7 @@ struct Interpreter:
     def interpret_ir(mut self, stream: IRStream) raises:
         self.ip = 0
         while self.ip < len(stream):
-            var op = stream[self.ip].op
+            var op = stream[self.ip]
 
             if op.kind == IROpKind.JumpIfZero:
                 if self.memory.read() == 0:
