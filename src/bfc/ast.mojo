@@ -19,6 +19,11 @@ struct ASTOpKind(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
     comptime JumpIfZero = ASTOpKind(6)
     comptime JumpIfNonZero = ASTOpKind(7)
 
+    def is_jump(self) -> Bool:
+        return (
+            self == Self.JumpIfZero or self == Self.JumpIfNonZero
+        )
+
     def write_to(self, mut writer: Some[Writer]):
         if self == ASTOpKind.Increment:
             writer.write("ASTOpKind.Increment")

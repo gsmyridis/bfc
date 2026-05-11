@@ -71,7 +71,7 @@ struct IRBuilder:
 
             if node.value.isa[ASTOp]():
                 var ast_op = node.value[ASTOp]
-                if self.is_jump(ast_op.kind):
+                if ast_op.kind.is_jump():
                     continue
 
                 var kind = self.to_ir_kind(ast_op.kind)
@@ -121,12 +121,6 @@ struct IRBuilder:
             or kind == IROpKind.Right
             or kind == IROpKind.Input
             or kind == IROpKind.Output
-        )
-
-    def is_jump(self, kind: ASTOpKind) -> Bool:
-        return (
-            kind == ASTOpKind.JumpIfZero
-            or kind == ASTOpKind.JumpIfNonZero
         )
 
     def operand_or_one(self, op: ASTOp) raises -> Int:
