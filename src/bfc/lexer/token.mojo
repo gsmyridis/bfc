@@ -6,6 +6,7 @@ from span import Span
 # TokenKind
 # ===-----------------------------------------------------------------------===#
 
+
 @fieldwise_init
 struct TokenKind(
     Equatable,
@@ -25,7 +26,6 @@ struct TokenKind(
     comptime CloseBracket = TokenKind(7)
     comptime Eof = TokenKind(8)
     comptime Other = TokenKind(9)
-
 
     def __init__(out self, code: Codepoint):
         # TODO: Turn this to switch / match when feature becomses
@@ -49,14 +49,9 @@ struct TokenKind(
         else:
             return TokenKind.Other
 
-
     def is_bracket(self) -> Bool:
         """Returns true if the token kind is open or close bracket."""
-        return (
-            self == TokenKind.OpenBracket or 
-            self == TokenKind.CloseBracket
-        )
-
+        return self == TokenKind.OpenBracket or self == TokenKind.CloseBracket
 
     def write_to(self, mut writer: Some[Writer]):
         # TODO: Turn this to switch / match when feature becomses
@@ -80,7 +75,6 @@ struct TokenKind(
         else:
             debug_assert(self == TokenKind.Other)
             writer.write("TokenKind.Other")
-
 
     def write_repr_to(self, mut writer: Some[Writer]):
         self.write_to(writer)

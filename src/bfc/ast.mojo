@@ -5,9 +5,10 @@ from span import Span
 # Operation
 # ===-----------------------------------------------------------------------===#
 
+
 @fieldwise_init
 struct Op(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
-    var _value: Int8
+    var _id: Int8
 
     comptime Increment = Op(0)
     comptime Decrement = Op(1)
@@ -45,6 +46,7 @@ struct Op(Equatable, ImplicitlyCopyable, RegisterPassable, Writable):
 # Abstract Syntax Tree Node
 # ===-----------------------------------------------------------------------===#
 
+
 # TODO: Ideally, avoid allocations
 struct ASTNode(Copyable, Writable):
     comptime Ptr = UnsafePointer[Self, MutExternalOrigin]
@@ -77,6 +79,7 @@ struct ASTNode(Copyable, Writable):
 # Block
 # ===-----------------------------------------------------------------------===#
 
+
 struct Block(Copyable, Writable):
     var span_open: Span
     var span_close: Span
@@ -89,7 +92,8 @@ struct Block(Copyable, Writable):
 
     def write_to(self, mut writer: Some[Writer]):
         writer.write(
-            t"Block(span_open={self.span_open}, span_close={self.span_close}, body=["
+            t"Block(span_open={self.span_open}, span_close={self.span_close},"
+            t" body=["
         )
         for i in range(len(self.astree)):
             if i != 0:

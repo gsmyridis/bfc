@@ -6,7 +6,6 @@ from ast import Op, ASTNode, ASTree, Block
 
 @fieldwise_init
 struct Parser:
-
     def parse(self, token_stream: TokenStream) -> ASTree:
         var ast = ASTree()
 
@@ -26,7 +25,7 @@ struct Parser:
             var block = Block(
                 tt.value[Delimited].span_open,
                 tt.value[Delimited].span_close,
-                body^
+                body^,
             )
             return ASTNode(block^)
 

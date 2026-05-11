@@ -2,6 +2,7 @@ from std.sys import exit
 from lexer.token import tokenize
 from lexer import Lexer
 from parser import Parser
+from ir import lower_ast
 
 
 def read_to_string(path: String) -> String:
@@ -21,5 +22,7 @@ def main() raises:
 
     var lexer = Lexer[origin=origin_of(string)](string)
     var ts = lexer.lex_token_trees()
-    for x in Parser().parse(ts):
+    var ast = Parser().parse(ts)
+    var ir = lower_ast(ast)
+    for x in ir:
         print(x[])

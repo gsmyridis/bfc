@@ -18,7 +18,9 @@ struct Lexer[origin: Origin[mut=False]]:
     def lex_token_trees(mut self) raises -> TokenStream:
         return self._lex_token_trees_inner(False)
 
-    def _lex_token_trees_inner(mut self, is_delimited: Bool) raises -> TokenStream:
+    def _lex_token_trees_inner(
+        mut self, is_delimited: Bool
+    ) raises -> TokenStream:
         var buf = TokenStream()
 
         while True:

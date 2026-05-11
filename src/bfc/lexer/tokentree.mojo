@@ -6,6 +6,7 @@ from .token import TokenKind
 # TokenTree
 # ===-----------------------------------------------------------------------===#
 
+
 # TODO: Ideally, avoid allocations
 @fieldwise_init
 struct TokenTree(Copyable, Writable):
